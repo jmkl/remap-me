@@ -1,33 +1,41 @@
-mod double_tap;
-mod winutil;
 pub mod event;
-mod setting;
 mod keywrapper;
-use double_tap::DoubleTap;
+mod mod_double_tap;
+mod mod_hold;
+mod setting;
+mod winutil;
+use mod_double_tap::DoubleTap;
+
+pub use keywrapper::{string_to_key, KeyWrapper};
+use mod_hold::Hold;
 use rdev::SimulateError;
 pub use setting::{KeySetting, Macro, MacroKey};
-pub use keywrapper::{string_to_key, KeyWrapper};
 
-use std::{thread::{self, sleep}, time::Duration};
-use parking_lot::Mutex;
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 pub use rdev::{
-    grab, simulate, Event, EventType, Key,Key::{F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24}
+    grab, simulate, Event, EventType, Key,
+    Key::{F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24},
+};
+use std::{
+    thread::{self, sleep},
+    time::Duration,
 };
 
-
 static DT: Lazy<Mutex<DoubleTap>> = Lazy::new(|| Mutex::new(DoubleTap::new(200)));
+static HOLD: Lazy<Mutex<Hold>> = Lazy::new(|| Mutex::new(Hold::new()));
 static IS_MOD: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
 static ALL_KEYS: Lazy<Mutex<Vec<MacroKey>>> = Lazy::new(|| Mutex::new(Vec::new()));
-static MOD_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::Escape));
+static DT_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::KeyQ));
+static HOLD_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::Escape));
 static KEYS: Lazy<Mutex<KeyState>> = Lazy::new(|| Mutex::new(KeyState::default()));
 
 pub use event::{
+    FunctionEvent, KeyPressEvent,
     KeymapEvent::{self, Func, Mod},
-    FunctionEvent, KeyPressEvent, ModChangeEvent,
+    ModChangeEvent,
 };
 pub use winutil::get_foreground_app;
-
 
 enum KeyMode {
     Pressed,
@@ -38,30 +46,26 @@ enum KeyMode {
 struct KeyState {
     keys: Vec<String>,
 }
-fn _simulate(ev:&EventType){
-    match simulate(ev){
-        Ok(())=>{}
-        Err(SimulateError)=>{ eprintln!("Error simulating KeyPress {ev:?}")}
+fn _simulate(ev: &EventType) {
+    match simulate(ev) {
+        Ok(()) => {}
+        Err(SimulateError) => {
+            eprintln!("Error simulating KeyPress {ev:?}")
+        }
     }
 }
-fn kc_press(key:Key) {
-  
-     _simulate(&EventType::KeyPress(key));
+fn kc_press(key: Key) {
+    _simulate(&EventType::KeyPress(key));
     sleep(Duration::from_millis(10));
-    
 }
-fn kc_release(key:Key) {
-  
+fn kc_release(key: Key) {
     _simulate(&EventType::KeyRelease(key));
     sleep(Duration::from_millis(10));
-    
 }
-fn kc_click(key:Key) {
-  
-     _simulate(&EventType::KeyPress(key));
+fn kc_click(key: Key) {
+    _simulate(&EventType::KeyPress(key));
     sleep(Duration::from_millis(10));
-     _simulate(&EventType::KeyRelease(key));
-    
+    _simulate(&EventType::KeyRelease(key));
 }
 
 pub fn update_mod(is_mod: bool) {
@@ -69,7 +73,7 @@ pub fn update_mod(is_mod: bool) {
     KeymapEvent::send(Mod(ModChangeEvent { is_mod }));
 }
 
-pub fn kc_macro(macros:Option<Macro>){
+pub fn kc_macro(macros: Option<Macro>) {
     if let Some(macros) = macros {
         let mods = macros
             .modifier
@@ -81,11 +85,11 @@ pub fn kc_macro(macros:Option<Macro>){
             .iter()
             .map(|x| string_to_key(x))
             .collect::<Vec<_>>();
-        kc_mod( mods, keys);
+        kc_mod(mods, keys);
     }
 }
 
-pub fn kc( keys: Vec<Key>) {
+pub fn kc(keys: Vec<Key>) {
     update_mod(false);
 
     for &key in keys.iter() {
@@ -94,14 +98,13 @@ pub fn kc( keys: Vec<Key>) {
 
     update_mod(true);
 }
-pub fn delay(millis:u64){
+pub fn delay(millis: u64) {
     sleep(Duration::from_millis(millis));
 }
 
 pub fn kc_mod(mods: Vec<Key>, keys: Vec<Key>) {
     update_mod(false);
     for &mod_ in mods.iter() {
-        
         kc_press(mod_);
     }
     for &key in keys.iter() {
@@ -109,14 +112,21 @@ pub fn kc_mod(mods: Vec<Key>, keys: Vec<Key>) {
     }
     for &mod_ in mods.iter() {
         kc_release(mod_);
-
     }
     update_mod(true);
 }
 
-fn escape() {
+fn send_original_hold_key() {
     thread::spawn(|| {
-        let mod_key = *MOD_KEY.lock();
+        let hold_key = *HOLD_KEY.lock();
+        kc_click(hold_key);
+        HOLD.lock().should_lock(false);
+    });
+}
+
+fn send_original_doubletap_key() {
+    thread::spawn(|| {
+        let mod_key = *DT_KEY.lock();
         kc_click(mod_key);
         // let mut enigo = Enigo::new(&Settings::default()).unwrap();
         // enigo.key(enigo::Key::Escape, Click).unwrap();
@@ -133,8 +143,6 @@ fn sort_key(k: &str) -> String {
     keys.sort();
     keys.join("-")
 }
-
-
 
 fn update_keys(kw: KeyWrapper, mode: KeyMode, event: Event) -> Option<Event> {
     let mut sk = KEYS.lock();
@@ -156,7 +164,6 @@ fn update_keys(kw: KeyWrapper, mode: KeyMode, event: Event) -> Option<Event> {
             }
         }
         KeyMode::Released => {
-
             if is_mod() {
                 //is mod state calculate all the keys
                 let k = &mut sk.keys.clone();
@@ -166,7 +173,7 @@ fn update_keys(kw: KeyWrapper, mode: KeyMode, event: Event) -> Option<Event> {
                     let s = sort_key(x.key.as_str());
                     s == shortcut_key
                 });
-      
+
                 if let Some(func_key) = func_key {
                     let has_scope = !func_key.scope.is_empty();
                     let app = get_foreground_app();
@@ -210,50 +217,66 @@ fn update_keys(kw: KeyWrapper, mode: KeyMode, event: Event) -> Option<Event> {
                 sk.keys.clear();
                 return Some(event);
             }
-           
         }
     }
 }
 
-
-pub struct RemapMe{
-    pub mod_key:Lazy<Mutex<Key>>,
-    pub key_setting:KeySetting,
-
+pub struct RemapMe {
+    pub key_setting: KeySetting,
 }
-pub struct KV<'a>{
-    pub k:&'a str,
-    pub v:&'a str
+pub struct KV<'a> {
+    pub k: &'a str,
+    pub v: &'a str,
 }
-impl RemapMe{
-    pub fn new()->Self{
-        Self { 
-            mod_key:Lazy::new(||Mutex::new(Key::Escape)),
-            key_setting:KeySetting::new()
-         }
+impl RemapMe {
+    pub fn new() -> Self {
+        Self {
+            key_setting: KeySetting::new(),
+        }
     }
-    pub fn set_mod_key(&self, key:Key){
-        *MOD_KEY.lock() = key;
+    pub fn set_mod_key(&self, key: Key) {
+        *DT_KEY.lock() = key;
     }
-    pub fn to_display(&self)->Vec<KV>{
-        self.key_setting.keys.iter()
-        .map(|x|KV{k:x.key.as_str(),v:x.function.as_str()})
-        .collect::<Vec<KV>>()
-        
+    pub fn set_hold_key(&self, key: Key) {
+        *HOLD_KEY.lock() = key;
+    }
+    pub fn to_display(&self) -> Vec<KV> {
+        self.key_setting
+            .keys
+            .iter()
+            .map(|x| KV {
+                k: x.key.as_str(),
+                v: x.function.as_str(),
+            })
+            .collect::<Vec<KV>>()
     }
 
-
-
-    pub fn spawn(&self){
-
-        *ALL_KEYS.lock() = self.key_setting.keys.clone();      
-        thread::spawn(||{
+    pub fn spawn(&self) {
+        *ALL_KEYS.lock() = self.key_setting.keys.clone();
+        thread::spawn(|| {
             _ = grab(move |event: Event| -> Option<Event> {
                 let mut dt = DT.lock();
-                let mod_key = *MOD_KEY.lock();
+                let mut hold = HOLD.lock();
+                let dt_key = *DT_KEY.lock();
+                let hold_key = *HOLD_KEY.lock();
                 match &event.event_type {
                     EventType::KeyPress(key) => match key {
-                        k if k == &mod_key => {
+                        a if a == &hold_key => {
+                            if hold.is_pressed() {
+                              None
+                                //Some(event)
+                            } else {
+                                if hold.is_locked(){
+                                    Some(event)
+                                }else{
+
+                                    hold.press();
+                                    update_mod(true);
+                                    None
+                                }
+                            }
+                        }
+                        k if k == &dt_key => {
                             if dt.locked {
                                 Some(event)
                             } else {
@@ -273,8 +296,30 @@ impl RemapMe{
                     EventType::KeyRelease(key) => {
                         let kw = KeyWrapper(*key);
                         let is_mod = *IS_MOD.lock();
-    
-                        if key == &mod_key {
+
+                        if key == &hold_key {
+                            if hold.is_pressed() {
+                                if hold.is_locked() {
+                                    update_mod(false);
+                                    match hold.release() {
+                                        true => {
+                                            return None;
+                                        }
+                                        false => {
+                                            hold.should_lock(true);
+                                            send_original_hold_key();
+                                            return None;
+                                        }
+                                    }
+                                }
+                            } else {
+                                return None;
+                            }
+
+                            return None;
+                        }
+
+                        if key == &dt_key {
                             if dt.locked {
                                 return Some(event);
                             } else {
@@ -282,7 +327,7 @@ impl RemapMe{
                                     update_mod(!is_mod);
                                 } else {
                                     dt.locked = true;
-                                    escape();
+                                    send_original_doubletap_key();
                                     return None;
                                 }
                             }
@@ -295,6 +340,5 @@ impl RemapMe{
                 }
             });
         });
-      
     }
 }

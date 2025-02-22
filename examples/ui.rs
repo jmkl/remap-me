@@ -1,13 +1,18 @@
 use std::{thread::{self, sleep}, time::Duration};
+use std::io::{stdout, Write};
+use crossterm::{cursor::{self, MoveTo}, execute, terminal::{Clear, ClearType}};
 
 use rdev::Key::{self,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24};
-use remap_me::{delay, event::KeymapEvent, get_foreground_app, kc, kc_macro, kc_mod, RemapMe};
+use remap_me::{delay, event::KeymapEvent, get_foreground_app, kc, kc_macro, kc_mod, string_to_key, update_mod, RemapMe};
 
 
 
-fn update_ui(content:&str){    
-    println!("{content}");
-    
+fn update_ui(content:&str,pos:u16){
+    let mut stdout = stdout();
+    execute!(stdout, MoveTo(0, pos),Clear(ClearType::CurrentLine)).unwrap();
+    execute!(stdout,cursor::Hide).unwrap();
+    print!("{content}");
+    stdout.flush().unwrap();
 
 }
 
@@ -39,7 +44,7 @@ fn spawn_listener() {
                 match ev {
                     
                     KeymapEvent::Func(ev) => {
-                        update_ui(&ev.function.as_str());
+                        update_ui(&ev.function.as_str(),1);
                         match ev.function.as_str() {
                         
                         //PHOTOSHOP
@@ -128,11 +133,17 @@ fn spawn_listener() {
                         _ => {}
                     }},
                     KeymapEvent::Mod(mc) => {
-                        update_ui(match mc.is_mod{true=>"MOD [ON]",false=>"MOD [OFF]"});
-                      
+                        update_ui(match mc.is_mod{true=>"MOD [ON]",false=>"MOD [OFF]"},0);
+                        // if let Some(app_handle) = APP_HANDLE.get() {
+                        //     _ = app_handle.emit("mod-change", mc.is_mod);
+                        // }
                     }
                     KeymapEvent::Key(keys) => {
-                        update_ui(&keys.keys.join("-"));
+                        update_ui(&keys.keys.join("-"),2);
+
+                        // if let Some(app_handle) = APP_HANDLE.get() {
+                        //     _ = app_handle.emit("key-press", keys.keys);
+                        // }
                     }
                 }
        
@@ -145,6 +156,8 @@ fn spawn_listener() {
 fn main(){
     let remap_me = RemapMe::new();
     let help = remap_me.to_display();
+    let mut stdout = stdout();
+    execute!(stdout, MoveTo(0, 3), Clear(ClearType::All)).unwrap();
     for x in help.iter(){
         println!("{:<8} : {}",x.k,x.v);
     }
