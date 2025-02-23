@@ -1,6 +1,6 @@
 # KEYBOARD REMAP
 
-enable keymod by _double tapping_ the modifier key `q` or by holding `Esc`
+enable keymod by _double tapping_ the modifier key `RightControl` or by holding `RightAlt`
 
 
 

@@ -8,15 +8,15 @@ use mod_double_tap::DoubleTap;
 
 pub use keywrapper::{string_to_key, KeyWrapper};
 use mod_hold::Hold;
-use rdev::SimulateError;
-pub use setting::{KeySetting, Macro, MacroKey};
-
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
+use rdev::SimulateError;
 pub use rdev::{
     grab, simulate, Event, EventType, Key,
     Key::{F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24},
 };
+pub use setting::get_setting_path;
+pub use setting::{KeySetting, Macro, MacroKey};
 use std::{
     thread::{self, sleep},
     time::Duration,
@@ -26,8 +26,8 @@ static DT: Lazy<Mutex<DoubleTap>> = Lazy::new(|| Mutex::new(DoubleTap::new(200))
 static HOLD: Lazy<Mutex<Hold>> = Lazy::new(|| Mutex::new(Hold::new()));
 static IS_MOD: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
 static ALL_KEYS: Lazy<Mutex<Vec<MacroKey>>> = Lazy::new(|| Mutex::new(Vec::new()));
-static DT_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::KeyQ));
-static HOLD_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::Escape));
+static DT_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::ControlRight));
+static HOLD_KEY: Lazy<Mutex<Key>> = Lazy::new(|| Mutex::new(Key::AltGr));
 static KEYS: Lazy<Mutex<KeyState>> = Lazy::new(|| Mutex::new(KeyState::default()));
 
 pub use event::{
@@ -254,7 +254,7 @@ impl RemapMe {
     pub fn spawn(&self) {
         *ALL_KEYS.lock() = self.key_setting.keys.clone();
         thread::spawn(|| {
-            _ = grab(move |event: Event| -> Option<Event> {
+            if let Err(err) = grab(move |event: Event| -> Option<Event> {
                 let mut dt = DT.lock();
                 let mut hold = HOLD.lock();
                 let dt_key = *DT_KEY.lock();
@@ -263,13 +263,12 @@ impl RemapMe {
                     EventType::KeyPress(key) => match key {
                         a if a == &hold_key => {
                             if hold.is_pressed() {
-                              None
+                                None
                                 //Some(event)
                             } else {
-                                if hold.is_locked(){
+                                if hold.is_locked() {
                                     Some(event)
-                                }else{
-
+                                } else {
                                     hold.press();
                                     update_mod(true);
                                     None
@@ -298,7 +297,7 @@ impl RemapMe {
                         let is_mod = *IS_MOD.lock();
 
                         if key == &hold_key {
-                            if hold.is_pressed() {
+                            if hold.is_pressed() && hold.is_locked() {
                                 if hold.is_locked() {
                                     update_mod(false);
                                     match hold.release() {
@@ -307,15 +306,16 @@ impl RemapMe {
                                         }
                                         false => {
                                             hold.should_lock(true);
+                                            println!("send original");
                                             send_original_hold_key();
                                             return None;
                                         }
                                     }
                                 }
                             } else {
-                                return None;
+                                println!("release {key:?}");
+                                return Some(event);
                             }
-
                             return None;
                         }
 
@@ -338,7 +338,9 @@ impl RemapMe {
                     }
                     _ => Some(event),
                 }
-            });
+            }) {
+                println!("Error grabbing::{err:?}");
+            }
         });
     }
 }

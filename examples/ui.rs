@@ -134,16 +134,11 @@ fn spawn_listener() {
                     }},
                     KeymapEvent::Mod(mc) => {
                         update_ui(match mc.is_mod{true=>"MOD [ON]",false=>"MOD [OFF]"},0);
-                        // if let Some(app_handle) = APP_HANDLE.get() {
-                        //     _ = app_handle.emit("mod-change", mc.is_mod);
-                        // }
+        
                     }
                     KeymapEvent::Key(keys) => {
                         update_ui(&keys.keys.join("-"),2);
 
-                        // if let Some(app_handle) = APP_HANDLE.get() {
-                        //     _ = app_handle.emit("key-press", keys.keys);
-                        // }
                     }
                 }
        

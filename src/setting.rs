@@ -35,7 +35,7 @@ pub struct KeySetting {
     
 }
 
-fn get_setting_path()->String{
+pub fn get_setting_path()->String{
   let current_dir = match std::env::current_exe() {
     Ok(path) => path.parent().unwrap().to_string_lossy().to_string(),
     Err(_) => "".to_string(),

@@ -1,7 +1,6 @@
 use std::time::{Duration, Instant};
 
 pub struct DoubleTap {
-    pub mod_enable:bool,
     press_time: Instant,
     last_press_time: Option<Instant>,
     pressed: bool,
@@ -13,7 +12,6 @@ pub struct DoubleTap {
 impl DoubleTap {
     pub fn new(threshold_ms: u64) -> Self {
         Self {
-            mod_enable:false,
             press_time: Instant::now(),
             last_press_time: None,
             pressed: false,

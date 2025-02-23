@@ -7,7 +7,7 @@ impl std::fmt::Display for KeyWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let r: &str = match &self.0 {
             Key::Alt | Key::AltGr => "A",
-            Key::ControlLeft => "C",
+            Key::ControlLeft | Key::ControlRight => "C",
             Key::MetaLeft | Key::MetaRight => "M",
             Key::ShiftLeft | Key::ShiftRight => "S",
             Key::Backspace => "backspace",
@@ -119,6 +119,7 @@ impl std::fmt::Display for KeyWrapper {
             Key::Kp9 => "kp9",
             Key::KpDelete => "kpdelete",
             Key::Function => "function",
+            Key::ModKey =>"mod",
             _ => "unknown",
         };
 
@@ -237,6 +238,7 @@ pub fn string_to_key(key: &str) -> Key {
         "kp8" => Key::Kp8,
         "kp9" => Key::Kp9,
         "kpdelete" => Key::Delete,
+        "mod"=>Key::ModKey,
         _ => Key::Unknown(0)
     }
 }
