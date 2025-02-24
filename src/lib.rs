@@ -229,9 +229,9 @@ pub struct KV<'a> {
     pub v: &'a str,
 }
 impl RemapMe {
-    pub fn new() -> Self {
+    pub fn new(setting_path: String) -> Self {
         Self {
-            key_setting: KeySetting::new(),
+            key_setting: KeySetting::new(setting_path),
         }
     }
     pub fn set_mod_key(&self, key: Key) {
@@ -306,14 +306,12 @@ impl RemapMe {
                                         }
                                         false => {
                                             hold.should_lock(true);
-                                            println!("send original");
                                             send_original_hold_key();
                                             return None;
                                         }
                                     }
                                 }
                             } else {
-                                println!("release {key:?}");
                                 return Some(event);
                             }
                             return None;
@@ -345,5 +343,13 @@ impl RemapMe {
                 println!("Error grabbing::{err:?}");
             }
         });
+    }
+}
+
+impl Default for RemapMe {
+    fn default() -> Self {
+        Self {
+            key_setting: KeySetting::default(),
+        }
     }
 }

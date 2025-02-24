@@ -4,12 +4,12 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
 };
-#[derive(Default,Debug, Clone, Deserialize, Serialize)]
-pub struct Macro{
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+pub struct Macro {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub modifier:Vec<String>,
+    pub modifier: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub keys:Vec<String>
+    pub keys: Vec<String>,
 }
 
 impl Macro {
@@ -21,33 +21,29 @@ impl Macro {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MacroKey {
     pub key: String,
-    #[serde(default,skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scope: Vec<String>,
     pub function: String,
-    #[serde(default,skip_serializing_if = "Macro::is_empty")]
-    pub macros:Macro
+    #[serde(default, skip_serializing_if = "Macro::is_empty")]
+    pub macros: Macro,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KeySetting {
-    setting_path:String,
+    setting_path: String,
     pub keys: Vec<MacroKey>,
-    
 }
 
-pub fn get_setting_path()->String{
-  let current_dir = match std::env::current_exe() {
-    Ok(path) => path.parent().unwrap().to_string_lossy().to_string(),
-    Err(_) => "".to_string(),
-};
-format!("{}\\key_setting.json", current_dir)
-
+pub fn get_setting_path() -> String {
+    let current_dir = match std::env::current_exe() {
+        Ok(path) => path.parent().unwrap().to_string_lossy().to_string(),
+        Err(_) => "".to_string(),
+    };
+    format!("{}\\key_setting.json", current_dir)
 }
-
 
 impl KeySetting {
-    fn default_keys()->Vec<MacroKey>{
-
+    fn default_keys() -> Vec<MacroKey> {
         let default_setting = json!([
             {
                 "key": "f12",
@@ -162,41 +158,55 @@ impl KeySetting {
                 }
               }
         ]);
-      let result = serde_json::from_value(default_setting).unwrap();
-      result
-   }
+        let result = serde_json::from_value(default_setting).unwrap();
+        result
+    }
 
-    fn write_default(file_path: &str) {
+    pub fn write_default(file_path: &str) {
         match OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(file_path)
         {
             Ok(mut f) => {
-                let default_config =
-                    serde_json::to_string_pretty(&KeySetting::default_keys()).expect("Error writing default config");
+                let default_config = serde_json::to_string_pretty(&KeySetting::default_keys())
+                    .expect("Error writing default config");
                 _ = f.write_all(default_config.as_bytes());
             }
             Err(err) => {
-               //file already exist dont do anything
+                //file already exist dont do anything
             }
         }
     }
-    pub fn save_setting(&self,keys:Vec<MacroKey>)->std::io::Result<()>{
+    pub fn save_setting(&self, keys: Vec<MacroKey>) -> std::io::Result<()> {
         let content = serde_json::to_string_pretty(&keys).expect("Error writing default config");
-        fs::write(&get_setting_path(), content)?;
+        fs::write(&self.setting_path, content)?;
         Ok(())
     }
-    pub fn update_setting(&mut self){
-        let content = match fs::read_to_string(&get_setting_path()) {
+    pub fn update_setting(&mut self) {
+        let content = match fs::read_to_string(&self.setting_path) {
             Ok(result) => result,
             Err(_) => panic!("Error reading file"),
         };
         let setting: KeySetting = serde_json::from_str(&content).unwrap();
         self.keys = setting.keys;
-
     }
-    pub fn new() -> Self {
+    pub fn new(setting_path: String) -> Self {
+        Self::write_default(&setting_path);
+        let content = match fs::read_to_string(&setting_path) {
+            Ok(result) => result,
+            Err(_) => panic!("Error reading file"),
+        };
+        let setting: Vec<MacroKey> = serde_json::from_str(&content).unwrap();
+
+        Self {
+            keys: setting,
+            setting_path,
+        }
+    }
+}
+impl Default for KeySetting {
+    fn default() -> Self {
         let setting_path = get_setting_path();
         Self::write_default(&setting_path);
         let content = match fs::read_to_string(&setting_path) {
@@ -204,15 +214,10 @@ impl KeySetting {
             Err(_) => panic!("Error reading file"),
         };
         let setting: Vec<MacroKey> = serde_json::from_str(&content).unwrap();
-       
- 
-       
-       
-     
-        
+
         Self {
             keys: setting,
-            setting_path
+            setting_path,
         }
     }
 }
