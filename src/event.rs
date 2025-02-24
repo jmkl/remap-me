@@ -1,8 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
-use crate::setting::Macro;
-
 type FunctionEventReceiver = Receiver<KeymapEvent>;
 type FunctionEventHandler = Box<dyn Fn(KeymapEvent) + Send + Sync + 'static>;
 static G_FUNCTION_CHANNEL: Lazy<(Sender<KeymapEvent>, FunctionEventReceiver)> =
@@ -16,7 +14,7 @@ pub struct ModChangeEvent {
 #[derive(Debug)]
 pub struct FunctionEvent {
     pub function: String,
-    pub macros:Option<Macro>
+    pub macros: Option<Vec<String>>,
 }
 #[derive(Debug)]
 pub struct KeyPressEvent {
@@ -27,7 +25,7 @@ pub struct KeyPressEvent {
 pub enum KeymapEvent {
     Func(FunctionEvent),
     Mod(ModChangeEvent),
-    Key(KeyPressEvent)
+    Key(KeyPressEvent),
 }
 
 impl KeymapEvent {

@@ -16,7 +16,7 @@ pub use rdev::{
     Key::{F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24},
 };
 pub use setting::get_setting_path;
-pub use setting::{KeySetting, Macro, MacroKey};
+pub use setting::{KeySetting, MacroKey};
 use std::{
     thread::{self, sleep},
     time::Duration,
@@ -73,19 +73,27 @@ pub fn update_mod(is_mod: bool) {
     KeymapEvent::send(Mod(ModChangeEvent { is_mod }));
 }
 
-pub fn kc_macro(macros: Option<Macro>) {
+fn execute_macros(key_str: &str) {
+    let mut mods = Vec::new();
+    let mut keys = Vec::new();
+    for part in key_str.split("-") {
+        match part {
+            "C" => mods.push(Key::ControlLeft),
+            "A" => mods.push(Key::Alt),
+            "M" => mods.push(Key::MetaLeft),
+            "S" => mods.push(Key::ShiftLeft),
+            _ => keys.push(string_to_key(part)),
+        }
+    }
+    kc_mod(mods, keys);
+    delay(20);
+}
+
+pub fn kc_macro(macros: Option<Vec<String>>) {
     if let Some(macros) = macros {
-        let mods = macros
-            .modifier
-            .iter()
-            .map(|x| string_to_key(x))
-            .collect::<Vec<_>>();
-        let keys = macros
-            .keys
-            .iter()
-            .map(|x| string_to_key(x))
-            .collect::<Vec<_>>();
-        kc_mod(mods, keys);
+        for m in macros.iter() {
+            execute_macros(m);
+        }
     }
 }
 
@@ -229,7 +237,7 @@ pub struct KV<'a> {
     pub v: &'a str,
 }
 impl RemapMe {
-    pub fn new(setting_path: String) -> Self {
+    pub fn new(setting_path: &str) -> Self {
         Self {
             key_setting: KeySetting::new(setting_path),
         }

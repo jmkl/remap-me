@@ -138,7 +138,7 @@ fn spawn_listener() {
 }
 
 fn main() {
-    let remap_me = RemapMe::default();
+    let remap_me = RemapMe::new("C:/Users/jmkl/.config/remap-me.json");
     let help = remap_me.to_display();
     for x in help.iter() {
         println!("{:<8} : {}", x.k, x.v);

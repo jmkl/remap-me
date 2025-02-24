@@ -14,10 +14,8 @@ configuration file store in `keysetting.json`
     {
         "key":"b",
         "function":"macros",
-        "macros":{
-            "modifier":["C","S"],
-            "keys":["a"]
-        }
+        "macros":["C-a","C-c","C-v"]
+        
     }
 ]
 ```

@@ -4,19 +4,6 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
 };
-#[derive(Default, Debug, Clone, Deserialize, Serialize)]
-pub struct Macro {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub modifier: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub keys: Vec<String>,
-}
-
-impl Macro {
-    fn is_empty(&self) -> bool {
-        self.modifier.is_empty() && self.keys.is_empty()
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MacroKey {
@@ -24,8 +11,8 @@ pub struct MacroKey {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scope: Vec<String>,
     pub function: String,
-    #[serde(default, skip_serializing_if = "Macro::is_empty")]
-    pub macros: Macro,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub macros: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -152,10 +139,8 @@ impl KeySetting {
               {
                 "function": "macros",
                 "key": "f11",
-                "macros":{
-                    "modifier":["C"],
-                    "keys":["a"]
-                }
+                "macros":["C-a"]
+
               }
         ]);
         let result = serde_json::from_value(default_setting).unwrap();
@@ -191,9 +176,9 @@ impl KeySetting {
         let setting: KeySetting = serde_json::from_str(&content).unwrap();
         self.keys = setting.keys;
     }
-    pub fn new(setting_path: String) -> Self {
-        Self::write_default(&setting_path);
-        let content = match fs::read_to_string(&setting_path) {
+    pub fn new(setting_path: &str) -> Self {
+        Self::write_default(setting_path);
+        let content = match fs::read_to_string(setting_path) {
             Ok(result) => result,
             Err(_) => panic!("Error reading file"),
         };
@@ -201,7 +186,7 @@ impl KeySetting {
 
         Self {
             keys: setting,
-            setting_path,
+            setting_path: setting_path.to_string(),
         }
     }
 }
