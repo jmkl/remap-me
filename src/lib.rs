@@ -4,7 +4,7 @@ mod mod_double_tap;
 mod mod_hold;
 mod setting;
 mod winutil;
-use mod_double_tap::DoubleTap;
+use mod_double_tap::{DoubleTap, TapMode};
 
 pub use keywrapper::{string_to_key, KeyWrapper};
 use mod_hold::Hold;
@@ -323,12 +323,15 @@ impl RemapMe {
                             if dt.locked {
                                 return Some(event);
                             } else {
-                                if dt.is() {
-                                    update_mod(!is_mod);
-                                } else {
-                                    dt.locked = true;
-                                    send_original_doubletap_key();
-                                    return None;
+                                match dt.is() {
+                                    TapMode::QuickTap | TapMode::Hold => {
+                                        dt.locked = true;
+                                        send_original_doubletap_key();
+                                        return None;
+                                    }
+                                    TapMode::DoubleTap => {
+                                        update_mod(!is_mod);
+                                    }
                                 }
                             }
                         } else {

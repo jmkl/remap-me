@@ -1,5 +1,11 @@
 use std::time::{Duration, Instant};
 
+pub enum TapMode {
+    QuickTap,
+    Hold,
+    DoubleTap,
+}
+
 pub struct DoubleTap {
     press_time: Instant,
     last_press_time: Option<Instant>,
@@ -29,7 +35,7 @@ impl DoubleTap {
         }
     }
 
-    pub fn is(&mut self) -> bool {
+    pub fn is(&mut self) -> TapMode {
         self.pressed = false;
         let elapsed = self.press_time.elapsed();
 
@@ -37,17 +43,17 @@ impl DoubleTap {
         if let Some(last_press) = self.last_press_time {
             let time_between_presses = self.press_time - last_press;
             if time_between_presses <= self.double_tap_threshold {
-                return true;
+                return TapMode::DoubleTap;
             }
         }
 
         // Normal hold check
         if elapsed < self.threshold {
             // Quick tap
-            false
+            TapMode::QuickTap
         } else {
             // Hold duration greater than threshold
-            true
+            TapMode::Hold
         }
     }
 }
