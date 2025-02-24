@@ -51,7 +51,7 @@ impl KeySetting {
             },
             {
                 "function": "zen_search",
-                "key": "C-g"
+                "key": "g"
               },
               {
                 "function": "ps_newdoc",
